@@ -4,9 +4,9 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'project/modules/orders/**'
-      - 'project/template.yaml'
-      - 'project/scripts/**'
+      - 'modules/orders/**'
+      - 'template.yaml'
+      - 'scripts/**'
 
 permissions:
   id-token: write
