@@ -49,11 +49,9 @@ jobs:
           echo "Workflow triggered for ORDERS module"
 
       - name: SAM Build
-        working-directory: project
         run: sam build --use-container --debug
 
       - name: SAM Deploy (orders only)
-        working-directory: project
         run: |
           sam deploy \
             --no-confirm-changeset \
@@ -65,13 +63,11 @@ jobs:
             --debug
 
       - name: Install script deps
-        working-directory: project
         run: |
           python -m pip install --upgrade pip
           python -m pip install boto3
 
       - name: Sync API routes for orders
-        working-directory: project
         run: |
           python scripts/sync_routes.py --module orders --stage ${{ env.STAGE }}
 
