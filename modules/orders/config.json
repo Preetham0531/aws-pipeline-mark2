@@ -2,8 +2,4 @@
   "/orders",
   "/orders/{id}"
 ]
-[
-  "/orders",
-  "/orders/{id}"
-]
 

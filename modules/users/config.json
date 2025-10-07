@@ -2,8 +2,4 @@
   "/users",
   "/users/{id}"
 ]
-[
-  "/users",
-  "/users/{id}"
-]
 
