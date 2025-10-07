@@ -125,24 +125,41 @@ def main():
     lambda_client = boto3.client("lambda")
     sts = boto3.client("sts")
     account_id = sts.get_caller_identity()["Account"]
-    region = boto3.session.Session().region_name or os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
+    region = (
+        boto3.session.Session().region_name
+        or os.environ.get("AWS_REGION")
+        or os.environ.get("AWS_DEFAULT_REGION")
+        or "us-east-1"
+    )
+    print(f"[sync] module={args.module} stage={args.stage} api_name={args.api_name}")
+    print(f"[sync] modules_dir={modules_dir} config_path={config_path}")
+    print(f"[sync] account_id={account_id} region={region}")
 
     rest_api_id = find_rest_api_id_by_name(apigw, args.api_name)
     if not rest_api_id:
-        raise RuntimeError(f"REST API with name {args.api_name} not found. Ensure SAM created it: {args.api_name}")
+        raise RuntimeError(
+            f"REST API with name {args.api_name} not found. Ensure SAM created it: {args.api_name}"
+        )
+    print(f"[sync] rest_api_id={rest_api_id}")
 
+    print(f"[sync] resolving lambda name={lambda_name}")
     lambda_fn = lambda_client.get_function(FunctionName=lambda_name)
     lambda_arn = lambda_fn["Configuration"]["FunctionArn"]
+    print(f"[sync] lambda_arn={lambda_arn}")
 
     paths = load_paths(config_path)
+    print(f"[sync] desired_paths={paths}")
     for path in paths:
+        print(f"[sync] ensuring path={path}")
         resource_id = ensure_path(apigw, rest_api_id, path)
         for method in ("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"):
+            print(f"[sync] ensuring method={method} on resource_id={resource_id}")
             ensure_method_and_integration(apigw, rest_api_id, resource_id, method, lambda_arn)
 
     add_permission_for_apigw(lambda_client, lambda_arn, rest_api_id, account_id, region)
+    print("[sync] deployed permissions; creating deployment")
     deploy_stage(apigw, rest_api_id, args.stage)
-    print(f"Synced {len(paths)} paths for module={args.module} on API={args.api_name} stage={args.stage}")
+    print(f"[sync] complete: {len(paths)} paths synced for module={args.module} on API={args.api_name} stage={args.stage}")
 
 
 if __name__ == "__main__":

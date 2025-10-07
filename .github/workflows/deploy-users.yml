@@ -36,9 +36,21 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Diagnostics (AWS identity and tooling)
+        run: |
+          aws --version || true
+          aws sts get-caller-identity || true
+          echo "AWS_REGION=$AWS_REGION" && echo "STAGE=$STAGE"
+          echo "Exporting AWS_DEFAULT_REGION for boto3"
+          echo "AWS_DEFAULT_REGION=$AWS_REGION" >> $GITHUB_ENV
+          sam --version || true
+          python --version
+          pip --version
+          echo "Workflow triggered for USERS module"
+
       - name: SAM Build
         working-directory: project
-        run: sam build --use-container
+        run: sam build --use-container --debug
 
       - name: SAM Deploy (users only)
         working-directory: project
@@ -49,7 +61,8 @@ jobs:
             --resolve-s3 \
             --stack-name project-shared \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-            --parameter-overrides StageName=${{ env.STAGE }}
+            --parameter-overrides StageName=${{ env.STAGE }} \
+            --debug
 
       - name: Install script deps
         working-directory: project
