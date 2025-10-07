@@ -30,7 +30,7 @@ import json
 def lambda_handler(event, context):
     response_body = {
         "module": "users",
-        "message": "Users Lambda is healthy",
+        "message": "Users Lambda is healthy v2",
         "path": event.get("resource"),
     }
     return {
