@@ -71,4 +71,13 @@ jobs:
         run: |
           python scripts/sync_routes.py --module users --stage ${{ env.STAGE }}
 
+      - name: Post-deploy diagnostics (CFN/API/Lambda)
+        if: always()
+        run: |
+          echo "=== STS identity ===" && aws sts get-caller-identity || true
+          echo "=== CFN stacks ===" && aws cloudformation describe-stacks --stack-name project-shared || true
+          echo "=== CFN recent events ===" && aws cloudformation describe-stack-events --stack-name project-shared --max-items 20 || true
+          echo "=== API Gateway lookup ===" && aws apigateway get-rest-apis --query 'items[?name==`MainApiGateway`]' || true
+          echo "=== Lambda functions (project-*) ===" && aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `project-`)==`true`].[FunctionName,LastModified]' --output table || true
+
 
