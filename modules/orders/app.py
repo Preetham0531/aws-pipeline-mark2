@@ -8,7 +8,7 @@ def lambda_handler(event, context):
         return {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"status": "ok", "service": "orders"}),
+            "body": json.dumps({"status": "ok v2", "service": "orders"}),
         }
 
     if path.startswith("/orders") and method in ("GET", "POST", "PUT", "DELETE"):
