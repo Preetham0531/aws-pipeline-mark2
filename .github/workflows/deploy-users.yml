@@ -4,9 +4,10 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'modules/users/**'
+      - 'modules/users/**/*.py'
+      - 'modules/users/config.json'
       - 'template.yaml'
-      - 'scripts/**'
+      - 'scripts/**/*.py'
 
 permissions:
   id-token: write
