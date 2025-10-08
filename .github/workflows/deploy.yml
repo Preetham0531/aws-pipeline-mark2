@@ -1,0 +1,136 @@
+name: Deploy Modules
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'modules/**'
+      - 'template.yaml'
+      - 'scripts/**/*.py'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      users_changed: ${{ steps.filter.outputs.users }}
+      orders_changed: ${{ steps.filter.outputs.orders }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            users:
+              - 'modules/users/**/*.py'
+              - 'modules/users/config.json'
+              - 'template.yaml'
+              - 'scripts/**/*.py'
+            orders:
+              - 'modules/orders/**/*.py'
+              - 'modules/orders/config.json'
+              - 'template.yaml'
+              - 'scripts/**/*.py'
+
+  deploy-users:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.users_changed == 'true'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      STAGE: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: aws-actions/setup-sam@v2
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Diagnostics
+        run: |
+          aws --version || true
+          aws sts get-caller-identity || true
+          echo "AWS_REGION=$AWS_REGION" && echo "STAGE=$STAGE"
+          sam --version || true
+          python --version
+      - name: SAM Build
+        run: sam build --use-container --debug
+      - name: SAM Deploy (users)
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3 \
+            --stack-name project-shared \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --parameter-overrides StageName=${{ env.STAGE }} \
+            --debug
+      - name: Install script deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install boto3
+      - name: Sync API routes (users)
+        run: python scripts/sync_routes.py --module users --stage ${{ env.STAGE }}
+      - name: Post-deploy diagnostics
+        if: always()
+        run: |
+          aws cloudformation describe-stacks --stack-name project-shared || true
+          aws apigateway get-rest-apis --query 'items[?name==`MainApiGateway`]' || true
+          aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `project-`)==`true`].[FunctionName,LastModified]' --output table || true
+
+  deploy-orders:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.orders_changed == 'true'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      STAGE: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: aws-actions/setup-sam@v2
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Diagnostics
+        run: |
+          aws --version || true
+          aws sts get-caller-identity || true
+          echo "AWS_REGION=$AWS_REGION" && echo "STAGE=$STAGE"
+          sam --version || true
+          python --version
+      - name: SAM Build
+        run: sam build --use-container --debug
+      - name: SAM Deploy (orders)
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3 \
+            --stack-name project-shared \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --parameter-overrides StageName=${{ env.STAGE }} \
+            --debug
+      - name: Install script deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install boto3
+      - name: Sync API routes (orders)
+        run: python scripts/sync_routes.py --module orders --stage ${{ env.STAGE }}
+      - name: Post-deploy diagnostics
+        if: always()
+        run: |
+          aws cloudformation describe-stacks --stack-name project-shared || true
+          aws apigateway get-rest-apis --query 'items[?name==`MainApiGateway`]' || true
+          aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `project-`)==`true`].[FunctionName,LastModified]' --output table || true
+
+
